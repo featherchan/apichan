@@ -14,6 +14,7 @@ import {
   Terminal, HardDrive, BarChart3, Database as DbIcon, Clock, Shield,
   Pin, PinOff,
 } from 'lucide-vue-next'
+import SharedRemoteServerView from './SharedRemoteServerView.vue'
 
 const toast = useToast()
 const api   = useApichanAPI()
@@ -598,50 +599,7 @@ function switchTab(tab: 'sources' | 'remote') {
 
       <!-- ═══════════════ REMOTE SERVERS TAB ═══════════════════ -->
       <template v-else>
-        <div v-if="loadingRemotes && !remotes.length" class="flex justify-center py-20">
-          <Loader2 class="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-        <div v-else-if="!remotes.length"
-          class="flex flex-col items-center justify-center py-20 border border-dashed rounded-lg text-muted-foreground">
-          <Server class="h-10 w-10 mb-3 opacity-40" />
-          <p class="font-medium">No remote servers pinned</p>
-          <p class="text-xs mt-1">Go to Sources → browse a source → click the purple Pin button on any server</p>
-        </div>
-        <div v-else class="space-y-3">
-          <div v-for="r in remotes" :key="r.id" class="border border-border rounded-xl bg-card overflow-hidden">
-            <div class="flex items-center gap-3 px-4 py-3">
-              <!-- State dot -->
-              <div :class="['w-2.5 h-2.5 rounded-full shrink-0', stateDot(remoteStatus[r.id]?.state)]"></div>
-              <div class="flex-1 min-w-0">
-                <p class="font-semibold text-sm truncate">{{ r.name }}</p>
-                <p class="text-xs text-muted-foreground">{{ r.source_name }} ({{ r.source_type }})</p>
-              </div>
-              <!-- Resource mini -->
-              <div v-if="remoteStatus[r.id]" class="hidden sm:flex gap-3 text-xs text-muted-foreground">
-                <span>CPU {{ remoteStatus[r.id]!.cpu.toFixed(1) }}%</span>
-                <span>RAM {{ remoteStatus[r.id]!.memory_mb.toFixed(0) }} MB</span>
-              </div>
-              <!-- Power buttons -->
-              <div class="flex gap-1 shrink-0">
-                <button class="w-7 h-7 rounded-md bg-green-600/15 text-green-600 hover:bg-green-600/25 flex items-center justify-center" title="Start" @click="doPower(r, 'start')">
-                  <Play class="h-3.5 w-3.5" />
-                </button>
-                <button class="w-7 h-7 rounded-md bg-red-600/15 text-red-600 hover:bg-red-600/25 flex items-center justify-center" title="Stop" @click="doPower(r, 'stop')">
-                  <Square class="h-3.5 w-3.5" />
-                </button>
-                <button class="w-7 h-7 rounded-md bg-yellow-600/15 text-yellow-600 hover:bg-yellow-600/25 flex items-center justify-center" title="Restart" @click="doPower(r, 'restart')">
-                  <RotateCcw class="h-3.5 w-3.5" />
-                </button>
-                <button class="w-7 h-7 rounded-md border border-border hover:bg-muted flex items-center justify-center" title="Control Panel" @click="openControl(r)">
-                  <Server class="h-3.5 w-3.5" />
-                </button>
-                <button class="w-7 h-7 rounded-md border border-border hover:bg-muted flex items-center justify-center text-muted-foreground" title="Unpin" @click="unpinServer(r)">
-                  <PinOff class="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SharedRemoteServerView />
       </template>
 
     </div>
