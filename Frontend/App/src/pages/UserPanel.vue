@@ -733,7 +733,42 @@ const breadcrumbs = computed(() => {
 
       <!-- ═ REMOTE SERVERS TAB ═══════════════════════════════════════════════════ -->
       <template v-else>
-        <div class="text-center py-8 text-gray-400">Remote server management coming soon...</div>
+        <div v-if="loadingRem && !remotes.length" class="flex justify-center py-16">
+          <Loader2 class="h-6 w-6 animate-spin text-muted-foreground"/>
+        </div>
+        <div v-else-if="!remotes.length"
+          class="flex flex-col items-center py-16 text-muted-foreground border border-dashed border-border rounded-xl">
+          <Server class="h-8 w-8 mb-3 opacity-30"/>
+          <p class="font-medium text-sm">No remote servers</p>
+          <p class="text-xs mt-1 opacity-70">Go to Sources → browse servers → click Pin</p>
+        </div>
+        <div v-else class="space-y-2">
+          <div v-for="r in remotes" :key="r.id" class="card overflow-hidden">
+            <div class="flex items-center gap-3 px-4 py-3.5">
+              <div :class="['w-2 h-2 rounded-full shrink-0 ring-2 ring-offset-background', stateDot(remStatus[r.id]?.state)]"
+                :style="'ring-color: '+(remStatus[r.id]?.state === 'running' ? 'rgba(74,222,128,.3)' : 'rgba(248,113,113,.3)')"></div>
+              <div class="flex-1 min-w-0">
+                <p class="font-medium truncate">{{ r.name }}</p>
+                <p class="text-xs text-muted-foreground">{{ r.source_name }} · <span class="capitalize">{{ r.source_type }}</span></p>
+              </div>
+              <div v-if="remStatus[r.id]" class="hidden md:flex items-center gap-4 text-xs text-muted-foreground">
+                <span class="flex items-center gap-1"><Cpu class="h-3 w-3"/>{{ remStatus[r.id]!.cpu.toFixed(1) }}%</span>
+                <span class="flex items-center gap-1"><MemoryStick class="h-3 w-3"/>{{ remStatus[r.id]!.memory_mb.toFixed(0) }} MB</span>
+              </div>
+              <div class="flex gap-1 shrink-0">
+                <button class="power-btn green" title="Start" @click="doPower(r,'start')"><Play class="h-3.5 w-3.5"/></button>
+                <button class="power-btn red" title="Stop" @click="doPower(r,'stop')"><Square class="h-3.5 w-3.5"/></button>
+                <button class="power-btn yellow" title="Restart" @click="doPower(r,'restart')"><RotateCcw class="h-3.5 w-3.5"/></button>
+                <button class="icon-btn text-primary" title="Control Panel" @click="openControl(r)">
+                  <LayoutDashboard class="h-3.5 w-3.5"/>
+                </button>
+                <button class="icon-btn text-muted-foreground" title="Remove" @click="unpinServer(r)">
+                  <PinOff class="h-3.5 w-3.5"/>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </template>
 
     </div>
