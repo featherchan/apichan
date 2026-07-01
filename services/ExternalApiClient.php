@@ -1211,4 +1211,290 @@ class ExternalApiClient
 
         return $decoded;
     }
+
+    public function getServerDetails(string|int $serverId, ?string $identifier): array
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        return match ($this->type) {
+            'pterodactyl', 'pelican' => $this->request('GET', "/api/client/servers/{$cid}"),
+            'featherpanel' => $this->request('GET', "/api/user/servers/{$serverId}"),
+            'calagopus' => $this->request('GET', "/api/client/servers/{$cid}"),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
+
+    public function restoreBackup(string|int $serverId, ?string $identifier, string $backupUuid, bool $truncate = false): void
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        match ($this->type) {
+            'pterodactyl', 'pelican' => $this->clientPost(
+                "/api/client/servers/{$cid}/backups/{$backupUuid}/restore",
+                ['truncate' => $truncate]
+            ),
+            'featherpanel' => $this->requestPost(
+                "/api/user/servers/{$serverId}/backups/{$backupUuid}/restore",
+                ['truncate' => $truncate]
+            ),
+            'calagopus' => $this->clientPost(
+                "/api/client/servers/{$cid}/backups/{$backupUuid}/restore",
+                ['truncate' => $truncate]
+            ),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
+
+    public function toggleBackupLock(string|int $serverId, ?string $identifier, string $backupUuid): void
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        match ($this->type) {
+            'pterodactyl', 'pelican' => $this->clientPost(
+                "/api/client/servers/{$cid}/backups/{$backupUuid}/lock",
+                []
+            ),
+            'featherpanel' => $this->requestPost(
+                "/api/user/servers/{$serverId}/backups/{$backupUuid}/lock",
+                []
+            ),
+            'calagopus' => $this->clientPost(
+                "/api/client/servers/{$cid}/backups/{$backupUuid}/lock",
+                []
+            ),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
+
+    public function getBackupDownloadUrl(string|int $serverId, ?string $identifier, string $backupUuid): string
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        return match ($this->type) {
+            'pterodactyl', 'pelican' => (function () use ($cid, $backupUuid) {
+                $resp = $this->request('GET', "/api/client/servers/{$cid}/backups/{$backupUuid}/download");
+                return $resp['attributes']['url'] ?? '';
+            })(),
+            'featherpanel' => (function () use ($serverId, $backupUuid) {
+                $resp = $this->request('GET', "/api/user/servers/{$serverId}/backups/{$backupUuid}/download");
+                return $resp['data']['url'] ?? '';
+            })(),
+            'calagopus' => (function () use ($cid, $backupUuid) {
+                $resp = $this->request('GET', "/api/client/servers/{$cid}/backups/{$backupUuid}/download");
+                return $resp['attributes']['url'] ?? $resp['url'] ?? '';
+            })(),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
+
+    public function createDatabase(string|int $serverId, ?string $identifier, string $database, string $remote = '%'): void
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        match ($this->type) {
+            'pterodactyl', 'pelican' => $this->clientPost(
+                "/api/client/servers/{$cid}/databases",
+                ['database' => $database, 'remote' => $remote]
+            ),
+            'featherpanel' => $this->requestPost(
+                "/api/user/servers/{$serverId}/databases",
+                ['database' => $database, 'remote' => $remote]
+            ),
+            'calagopus' => $this->clientPost(
+                "/api/client/servers/{$cid}/databases",
+                ['database' => $database, 'remote' => $remote]
+            ),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
+
+    public function deleteDatabase(string|int $serverId, ?string $identifier, string $databaseId): void
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        match ($this->type) {
+            'pterodactyl', 'pelican' => $this->request('DELETE', "/api/client/servers/{$cid}/databases/{$databaseId}"),
+            'featherpanel' => $this->request('DELETE', "/api/user/servers/{$serverId}/databases/{$databaseId}"),
+            'calagopus' => $this->request('DELETE', "/api/client/servers/{$cid}/databases/{$databaseId}"),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
+
+    public function rotateDatabasePassword(string|int $serverId, ?string $identifier, string $databaseId): void
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        match ($this->type) {
+            'pterodactyl', 'pelican' => $this->clientPost(
+                "/api/client/servers/{$cid}/databases/{$databaseId}/rotate-password",
+                []
+            ),
+            'featherpanel' => $this->requestPost(
+                "/api/user/servers/{$serverId}/databases/{$databaseId}/rotate-password",
+                []
+            ),
+            'calagopus' => $this->clientPost(
+                "/api/client/servers/{$cid}/databases/{$databaseId}/rotate-password",
+                []
+            ),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
+
+    public function createSchedule(string|int $serverId, ?string $identifier, string $name, string $minute, string $hour, string $dayOfMonth, string $month, string $dayOfWeek, bool $isActive, bool $onlyWhenOnline): array
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        return match ($this->type) {
+            'pterodactyl', 'pelican' => $this->clientPost(
+                "/api/client/servers/{$cid}/schedules",
+                [
+                    'name' => $name,
+                    'minute' => $minute,
+                    'hour' => $hour,
+                    'day_of_month' => $dayOfMonth,
+                    'month' => $month,
+                    'day_of_week' => $dayOfWeek,
+                    'is_active' => $isActive,
+                    'only_when_online' => $onlyWhenOnline,
+                ]
+            ),
+            'featherpanel' => $this->requestPost(
+                "/api/user/servers/{$serverId}/schedules",
+                [
+                    'name' => $name,
+                    'minute' => $minute,
+                    'hour' => $hour,
+                    'day_of_month' => $dayOfMonth,
+                    'month' => $month,
+                    'day_of_week' => $dayOfWeek,
+                    'is_active' => $isActive,
+                    'only_when_online' => $onlyWhenOnline,
+                ]
+            ),
+            'calagopus' => $this->clientPost(
+                "/api/client/servers/{$cid}/schedules",
+                [
+                    'name' => $name,
+                    'minute' => $minute,
+                    'hour' => $hour,
+                    'day_of_month' => $dayOfMonth,
+                    'month' => $month,
+                    'day_of_week' => $dayOfWeek,
+                    'is_active' => $isActive,
+                    'only_when_online' => $onlyWhenOnline,
+                ]
+            ),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
+
+    public function updateSchedule(string|int $serverId, ?string $identifier, int $scheduleId, array $data): array
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        return match ($this->type) {
+            'pterodactyl', 'pelican' => $this->clientPost(
+                "/api/client/servers/{$cid}/schedules/{$scheduleId}",
+                $data
+            ),
+            'featherpanel' => $this->requestPost(
+                "/api/user/servers/{$serverId}/schedules/{$scheduleId}",
+                $data
+            ),
+            'calagopus' => $this->clientPost(
+                "/api/client/servers/{$cid}/schedules/{$scheduleId}",
+                $data
+            ),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
+
+    public function deleteSchedule(string|int $serverId, ?string $identifier, int $scheduleId): void
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        match ($this->type) {
+            'pterodactyl', 'pelican' => $this->request('DELETE', "/api/client/servers/{$cid}/schedules/{$scheduleId}"),
+            'featherpanel' => $this->request('DELETE', "/api/user/servers/{$serverId}/schedules/{$scheduleId}"),
+            'calagopus' => $this->request('DELETE', "/api/client/servers/{$cid}/schedules/{$scheduleId}"),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
+
+    public function executeSchedule(string|int $serverId, ?string $identifier, int $scheduleId): void
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        match ($this->type) {
+            'pterodactyl', 'pelican' => $this->clientPost(
+                "/api/client/servers/{$cid}/schedules/{$scheduleId}/execute",
+                []
+            ),
+            'featherpanel' => $this->requestPost(
+                "/api/user/servers/{$serverId}/schedules/{$scheduleId}/execute",
+                []
+            ),
+            'calagopus' => $this->clientPost(
+                "/api/client/servers/{$cid}/schedules/{$scheduleId}/execute",
+                []
+            ),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
+
+    public function createScheduleTask(string|int $serverId, ?string $identifier, int $scheduleId, string $action, string $payload, int $timeOffset, bool $continueOnFailure): array
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        return match ($this->type) {
+            'pterodactyl', 'pelican' => $this->clientPost(
+                "/api/client/servers/{$cid}/schedules/{$scheduleId}/tasks",
+                [
+                    'action' => $action,
+                    'payload' => $payload,
+                    'time_offset' => $timeOffset,
+                    'continue_on_failure' => $continueOnFailure,
+                ]
+            ),
+            'featherpanel' => $this->requestPost(
+                "/api/user/servers/{$serverId}/schedules/{$scheduleId}/tasks",
+                [
+                    'action' => $action,
+                    'payload' => $payload,
+                    'time_offset' => $timeOffset,
+                    'continue_on_failure' => $continueOnFailure,
+                ]
+            ),
+            'calagopus' => $this->clientPost(
+                "/api/client/servers/{$cid}/schedules/{$scheduleId}/tasks",
+                [
+                    'action' => $action,
+                    'payload' => $payload,
+                    'time_offset' => $timeOffset,
+                    'continue_on_failure' => $continueOnFailure,
+                ]
+            ),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
+
+    public function updateScheduleTask(string|int $serverId, ?string $identifier, int $scheduleId, int $taskId, array $data): array
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        return match ($this->type) {
+            'pterodactyl', 'pelican' => $this->clientPost(
+                "/api/client/servers/{$cid}/schedules/{$scheduleId}/tasks/{$taskId}",
+                $data
+            ),
+            'featherpanel' => $this->requestPost(
+                "/api/user/servers/{$serverId}/schedules/{$scheduleId}/tasks/{$taskId}",
+                $data
+            ),
+            'calagopus' => $this->clientPost(
+                "/api/client/servers/{$cid}/schedules/{$scheduleId}/tasks/{$taskId}",
+                $data
+            ),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
+
+    public function deleteScheduleTask(string|int $serverId, ?string $identifier, int $scheduleId, int $taskId): void
+    {
+        $cid = $this->clientId($serverId, $identifier);
+        match ($this->type) {
+            'pterodactyl', 'pelican' => $this->request('DELETE', "/api/client/servers/{$cid}/schedules/{$scheduleId}/tasks/{$taskId}"),
+            'featherpanel' => $this->request('DELETE', "/api/user/servers/{$serverId}/schedules/{$scheduleId}/tasks/{$taskId}"),
+            'calagopus' => $this->request('DELETE', "/api/client/servers/{$cid}/schedules/{$scheduleId}/tasks/{$taskId}"),
+            default => throw new \RuntimeException("Unknown source type: {$this->type}"),
+        };
+    }
 }

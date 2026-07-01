@@ -18,6 +18,7 @@ export default defineConfig({
       input: [
         path.resolve(__dirname, "admin.html"),
         path.resolve(__dirname, "user.html"),
+        path.resolve(__dirname, "remote.html"),
       ],
     },
   },

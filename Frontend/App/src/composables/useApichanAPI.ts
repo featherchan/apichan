@@ -327,6 +327,175 @@ export function useApichanAPI() {
     return await call<{ token: string; socket: string }>('GET', `/api/apichan/remote-servers/${id}/websocket`)
   }
 
+  async function getRemoteServer(id: string): Promise<any> {
+    return await call('GET', `/api/apichan/remote-servers/${id}`)
+  }
+
+  async function getRemoteServerDetails(id: string): Promise<any> {
+    return await call('GET', `/api/apichan/remote-servers/${id}/details`)
+  }
+
+  async function getRemoteServerStats(id: string): Promise<any> {
+    return await call('GET', `/api/apichan/remote-servers/${id}/resources`)
+  }
+
+  async function sendRemoteServerPower(id: string, action: string): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/power`, { action })
+  }
+
+  async function sendRemoteServerCommand(id: string, command: string): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/command`, { command })
+  }
+
+  async function getRemoteServerFiles(id: string, directory: string): Promise<any[]> {
+    const d = await call<{ files: any[] }>('GET', `/api/apichan/remote-servers/${id}/files/list?directory=${encodeURIComponent(directory)}`)
+    return d.files
+  }
+
+  async function getRemoteServerFileContent(id: string, file: string): Promise<any> {
+    return await call('GET', `/api/apichan/remote-servers/${id}/files/contents?file=${encodeURIComponent(file)}`)
+  }
+
+  async function writeRemoteServerFile(id: string, file: string, content: string): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/files/write`, { file, content })
+  }
+
+  async function createRemoteServerFolder(id: string, root: string, name: string): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/files/create-folder`, { root, name })
+  }
+
+  async function deleteRemoteServerFile(id: string, root: string, files: string[]): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/files/delete`, { root, files })
+  }
+
+  async function renameRemoteServerFile(id: string, root: string, from: string, to: string): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/files/rename`, { root, from, to })
+  }
+
+  async function copyRemoteServerFile(id: string, location: string, files: string[]): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/files/copy`, { location, files })
+  }
+
+  async function compressRemoteServerFiles(id: string, root: string, files: string[]): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/files/compress`, { root, files })
+  }
+
+  async function decompressRemoteServerFile(id: string, root: string, file: string): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/files/decompress`, { root, file })
+  }
+
+  async function uploadRemoteServerFile(id: string, directory: string, file: File, onProgress?: (percent: number) => void): Promise<void> {
+    const formData = new FormData()
+    formData.append('files[]', file)
+    
+    const xhr = new XMLHttpRequest()
+    
+    return new Promise((resolve, reject) => {
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(Math.round((e.loaded / e.total) * 100))
+        }
+      })
+      
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve()
+        } else {
+          reject(new Error('Upload failed'))
+        }
+      })
+      
+      xhr.addEventListener('error', () => reject(new Error('Upload failed')))
+      
+      xhr.open('POST', `/api/apichan/remote-servers/${id}/files/upload?directory=${encodeURIComponent(directory)}`)
+      xhr.withCredentials = true
+      xhr.send(formData)
+    })
+  }
+
+  async function downloadRemoteServerFile(id: string, file: string): Promise<{ download_url: string }> {
+    return await call('GET', `/api/apichan/remote-servers/${id}/files/download?file=${encodeURIComponent(file)}`)
+  }
+
+  async function setRemoteServerFilePermissions(id: string, file: string, mode: string): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/files/chmod`, { file, mode })
+  }
+
+  async function getRemoteServerBackups(id: string, params?: { page?: number; per_page?: number }): Promise<{ data: any[]; meta: { total: number } }> {
+    const query = new URLSearchParams()
+    if (params?.page) query.append('page', params.page.toString())
+    if (params?.per_page) query.append('per_page', params.per_page.toString())
+    return await call('GET', `/api/apichan/remote-servers/${id}/backups?${query}`)
+  }
+
+  async function createRemoteServerBackup(id: string, params: any): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/backups`, params)
+  }
+
+  async function deleteRemoteServerBackup(id: string, backupUuid: string): Promise<void> {
+    await call('DELETE', `/api/apichan/remote-servers/${id}/backups/${backupUuid}`)
+  }
+
+  async function restoreRemoteServerBackup(id: string, params: { backup_uuid: string; truncate?: boolean }): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/backups/restore`, params)
+  }
+
+  async function toggleRemoteServerBackupLock(id: string, backupUuid: string): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/backups/${backupUuid}/lock`)
+  }
+
+  async function downloadRemoteServerBackup(id: string, backupUuid: string): Promise<{ download_url: string }> {
+    return await call('GET', `/api/apichan/remote-servers/${id}/backups/${backupUuid}/download`)
+  }
+
+  async function getRemoteServerDatabases(id: string): Promise<{ data: any[] }> {
+    return await call('GET', `/api/apichan/remote-servers/${id}/databases`)
+  }
+
+  async function createRemoteServerDatabase(id: string, params: any): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/databases`, params)
+  }
+
+  async function deleteRemoteServerDatabase(id: string, databaseId: string): Promise<void> {
+    await call('DELETE', `/api/apichan/remote-servers/${id}/databases/${databaseId}`)
+  }
+
+  async function rotateRemoteServerDatabasePassword(id: string, params: { database_id: string }): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/databases/${params.database_id}/rotate-password`)
+  }
+
+  async function getRemoteServerSchedules(id: string): Promise<{ data: any[] }> {
+    return await call('GET', `/api/apichan/remote-servers/${id}/schedules`)
+  }
+
+  async function createRemoteServerSchedule(id: string, params: any): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/schedules`, params)
+  }
+
+  async function updateRemoteServerSchedule(id: string, scheduleId: number, params: any): Promise<void> {
+    await call('PATCH', `/api/apichan/remote-servers/${id}/schedules/${scheduleId}`, params)
+  }
+
+  async function deleteRemoteServerSchedule(id: string, scheduleId: number): Promise<void> {
+    await call('DELETE', `/api/apichan/remote-servers/${id}/schedules/${scheduleId}`)
+  }
+
+  async function triggerRemoteServerSchedule(id: string, scheduleId: number): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/schedules/${scheduleId}/execute`)
+  }
+
+  async function createRemoteServerScheduleTask(id: string, scheduleId: number, params: any): Promise<void> {
+    await call('POST', `/api/apichan/remote-servers/${id}/schedules/${scheduleId}/tasks`, params)
+  }
+
+  async function updateRemoteServerScheduleTask(id: string, scheduleId: number, taskId: number, params: any): Promise<void> {
+    await call('PATCH', `/api/apichan/remote-servers/${id}/schedules/${scheduleId}/tasks/${taskId}`, params)
+  }
+
+  async function deleteRemoteServerScheduleTask(id: string, scheduleId: number, taskId: number): Promise<void> {
+    await call('DELETE', `/api/apichan/remote-servers/${id}/schedules/${scheduleId}/tasks/${taskId}`)
+  }
+
   return {
     listSources, createSource, updateSource, deleteSource, listSourceServers, importServer, testConnection,
     listUserSources, createUserSource, updateUserSource, deleteUserSource, listUserSourceServers, testUserConnection,
@@ -339,5 +508,40 @@ export function useApichanAPI() {
     remoteListDatabases,
     remoteGetStartup, remoteUpdateStartupVariable,
     getRemoteWebsocket,
+    getRemoteServer,
+    getRemoteServerDetails,
+    getRemoteServerStats,
+    sendRemoteServerPower,
+    sendRemoteServerCommand,
+    getRemoteServerFiles,
+    getRemoteServerFileContent,
+    writeRemoteServerFile,
+    createRemoteServerFolder,
+    deleteRemoteServerFile,
+    renameRemoteServerFile,
+    copyRemoteServerFile,
+    compressRemoteServerFiles,
+    decompressRemoteServerFile,
+    uploadRemoteServerFile,
+    downloadRemoteServerFile,
+    setRemoteServerFilePermissions,
+    getRemoteServerBackups,
+    createRemoteServerBackup,
+    deleteRemoteServerBackup,
+    restoreRemoteServerBackup,
+    toggleRemoteServerBackupLock,
+    downloadRemoteServerBackup,
+    getRemoteServerDatabases,
+    createRemoteServerDatabase,
+    deleteRemoteServerDatabase,
+    rotateRemoteServerDatabasePassword,
+    getRemoteServerSchedules,
+    createRemoteServerSchedule,
+    updateRemoteServerSchedule,
+    deleteRemoteServerSchedule,
+    triggerRemoteServerSchedule,
+    createRemoteServerScheduleTask,
+    updateRemoteServerScheduleTask,
+    deleteRemoteServerScheduleTask,
   }
 }

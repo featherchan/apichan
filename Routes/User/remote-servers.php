@@ -166,4 +166,121 @@ return function (RouteCollection $routes): void {
         if ($id <= 0) return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
         return (new RemoteServerController())->updateStartupVariable($request, $id);
     }, ['PUT']);
+
+    // Get server details
+    $app->registerAuthRoute($routes, 'apichan-remote-details', '/api/apichan/remote-servers/{id}/details', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        if ($id <= 0) return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->details($request, $id);
+    });
+
+    // Get resources
+    $app->registerAuthRoute($routes, 'apichan-remote-resources', '/api/apichan/remote-servers/{id}/resources', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        if ($id <= 0) return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->resources($request, $id);
+    });
+
+    // Restore backup
+    $app->registerAuthRoute($routes, 'apichan-remote-backups-restore', '/api/apichan/remote-servers/{id}/backups/restore', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        if ($id <= 0) return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->restoreBackup($request, $id);
+    }, ['POST']);
+
+    // Toggle backup lock
+    $app->registerAuthRoute($routes, 'apichan-remote-backups-lock', '/api/apichan/remote-servers/{id}/backups/{backupUuid}/lock', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        $backupUuid = (string) ($args['backupUuid'] ?? '');
+        if ($id <= 0 || $backupUuid === '') return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->toggleBackupLock($request, $id, $backupUuid);
+    }, ['POST']);
+
+    // Download backup
+    $app->registerAuthRoute($routes, 'apichan-remote-backups-download', '/api/apichan/remote-servers/{id}/backups/{backupUuid}/download', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        $backupUuid = (string) ($args['backupUuid'] ?? '');
+        if ($id <= 0 || $backupUuid === '') return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->downloadBackup($request, $id, $backupUuid);
+    });
+
+    // Create database
+    $app->registerAuthRoute($routes, 'apichan-remote-databases-create', '/api/apichan/remote-servers/{id}/databases', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        if ($id <= 0) return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->createDatabase($request, $id);
+    }, ['POST']);
+
+    // Delete database
+    $app->registerAuthRoute($routes, 'apichan-remote-databases-delete', '/api/apichan/remote-servers/{id}/databases/{databaseId}', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        $databaseId = (string) ($args['databaseId'] ?? '');
+        if ($id <= 0 || $databaseId === '') return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->deleteDatabase($request, $id, $databaseId);
+    }, ['DELETE']);
+
+    // Rotate database password
+    $app->registerAuthRoute($routes, 'apichan-remote-databases-rotate', '/api/apichan/remote-servers/{id}/databases/{databaseId}/rotate-password', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        $databaseId = (string) ($args['databaseId'] ?? '');
+        if ($id <= 0 || $databaseId === '') return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->rotateDatabasePassword($request, $id, $databaseId);
+    }, ['POST']);
+
+    // Create schedule
+    $app->registerAuthRoute($routes, 'apichan-remote-schedules-create', '/api/apichan/remote-servers/{id}/schedules', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        if ($id <= 0) return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->createSchedule($request, $id);
+    }, ['POST']);
+
+    // Update schedule
+    $app->registerAuthRoute($routes, 'apichan-remote-schedules-update', '/api/apichan/remote-servers/{id}/schedules/{scheduleId}', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        $scheduleId = (int) ($args['scheduleId'] ?? 0);
+        if ($id <= 0 || $scheduleId <= 0) return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->updateSchedule($request, $id, $scheduleId);
+    }, ['PATCH']);
+
+    // Delete schedule
+    $app->registerAuthRoute($routes, 'apichan-remote-schedules-delete', '/api/apichan/remote-servers/{id}/schedules/{scheduleId}', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        $scheduleId = (int) ($args['scheduleId'] ?? 0);
+        if ($id <= 0 || $scheduleId <= 0) return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->deleteSchedule($request, $id, $scheduleId);
+    }, ['DELETE']);
+
+    // Execute schedule
+    $app->registerAuthRoute($routes, 'apichan-remote-schedules-execute', '/api/apichan/remote-servers/{id}/schedules/{scheduleId}/execute', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        $scheduleId = (int) ($args['scheduleId'] ?? 0);
+        if ($id <= 0 || $scheduleId <= 0) return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->executeSchedule($request, $id, $scheduleId);
+    }, ['POST']);
+
+    // Create schedule task
+    $app->registerAuthRoute($routes, 'apichan-remote-schedules-tasks-create', '/api/apichan/remote-servers/{id}/schedules/{scheduleId}/tasks', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        $scheduleId = (int) ($args['scheduleId'] ?? 0);
+        if ($id <= 0 || $scheduleId <= 0) return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->createScheduleTask($request, $id, $scheduleId);
+    }, ['POST']);
+
+    // Update schedule task
+    $app->registerAuthRoute($routes, 'apichan-remote-schedules-tasks-update', '/api/apichan/remote-servers/{id}/schedules/{scheduleId}/tasks/{taskId}', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        $scheduleId = (int) ($args['scheduleId'] ?? 0);
+        $taskId = (int) ($args['taskId'] ?? 0);
+        if ($id <= 0 || $scheduleId <= 0 || $taskId <= 0) return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->updateScheduleTask($request, $id, $scheduleId, $taskId);
+    }, ['PATCH']);
+
+    // Delete schedule task
+    $app->registerAuthRoute($routes, 'apichan-remote-schedules-tasks-delete', '/api/apichan/remote-servers/{id}/schedules/{scheduleId}/tasks/{taskId}', function (Request $request, array $args) {
+        $id = (int) ($args['id'] ?? 0);
+        $scheduleId = (int) ($args['scheduleId'] ?? 0);
+        $taskId = (int) ($args['taskId'] ?? 0);
+        if ($id <= 0 || $scheduleId <= 0 || $taskId <= 0) return ApiResponse::error('Invalid ID', 'INVALID_ID', 400);
+        return (new RemoteServerController())->deleteScheduleTask($request, $id, $scheduleId, $taskId);
+    }, ['DELETE']);
 };

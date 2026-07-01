@@ -319,4 +319,155 @@ class RemoteServerController
             return $client->getWebsocket($r['remote_server_id'], $r['remote_server_identifier']);
         });
     }
+
+    public function details(Request $request, int $id): Response
+    {
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) {
+            return $client->getServerDetails($r['remote_server_id'], $r['remote_server_identifier']);
+        });
+    }
+
+    public function resources(Request $request, int $id): Response
+    {
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) {
+            return $client->getResources($r['remote_server_id'], $r['remote_server_identifier']);
+        });
+    }
+
+    public function restoreBackup(Request $request, int $id): Response
+    {
+        $data = json_decode($request->getContent(), true);
+        $backupUuid = trim((string) ($data['backup_uuid'] ?? ''));
+        $truncate = (bool) ($data['truncate'] ?? false);
+        if ($backupUuid === '') {
+            return ApiResponse::error('backup_uuid is required', 'MISSING_FIELD', 400);
+        }
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) use ($backupUuid, $truncate) {
+            $client->restoreBackup($r['remote_server_id'], $r['remote_server_identifier'], $backupUuid, $truncate);
+            return ['restored' => true];
+        });
+    }
+
+    public function toggleBackupLock(Request $request, int $id, string $backupUuid): Response
+    {
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) use ($backupUuid) {
+            $client->toggleBackupLock($r['remote_server_id'], $r['remote_server_identifier'], $backupUuid);
+            return ['toggled' => true];
+        });
+    }
+
+    public function downloadBackup(Request $request, int $id, string $backupUuid): Response
+    {
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) use ($backupUuid) {
+            return ['download_url' => $client->getBackupDownloadUrl($r['remote_server_id'], $r['remote_server_identifier'], $backupUuid)];
+        });
+    }
+
+    public function createDatabase(Request $request, int $id): Response
+    {
+        $data = json_decode($request->getContent(), true);
+        $database = trim((string) ($data['database'] ?? ''));
+        $remote = trim((string) ($data['remote'] ?? '%'));
+        if ($database === '') {
+            return ApiResponse::error('database is required', 'MISSING_FIELD', 400);
+        }
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) use ($database, $remote) {
+            $client->createDatabase($r['remote_server_id'], $r['remote_server_identifier'], $database, $remote);
+            return ['created' => true];
+        });
+    }
+
+    public function deleteDatabase(Request $request, int $id, string $databaseId): Response
+    {
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) use ($databaseId) {
+            $client->deleteDatabase($r['remote_server_id'], $r['remote_server_identifier'], $databaseId);
+            return ['deleted' => true];
+        });
+    }
+
+    public function rotateDatabasePassword(Request $request, int $id, string $databaseId): Response
+    {
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) use ($databaseId) {
+            $client->rotateDatabasePassword($r['remote_server_id'], $r['remote_server_identifier'], $databaseId);
+            return ['rotated' => true];
+        });
+    }
+
+    public function createSchedule(Request $request, int $id): Response
+    {
+        $data = json_decode($request->getContent(), true);
+        $name = trim((string) ($data['name'] ?? ''));
+        $minute = trim((string) ($data['minute'] ?? '*'));
+        $hour = trim((string) ($data['hour'] ?? '*'));
+        $dayOfMonth = trim((string) ($data['day_of_month'] ?? '*'));
+        $month = trim((string) ($data['month'] ?? '*'));
+        $dayOfWeek = trim((string) ($data['day_of_week'] ?? '*'));
+        $isActive = (bool) ($data['is_active'] ?? true);
+        $onlyWhenOnline = (bool) ($data['only_when_online'] ?? false);
+        
+        if ($name === '') {
+            return ApiResponse::error('name is required', 'MISSING_FIELD', 400);
+        }
+        
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) use ($name, $minute, $hour, $dayOfMonth, $month, $dayOfWeek, $isActive, $onlyWhenOnline) {
+            return $client->createSchedule($r['remote_server_id'], $r['remote_server_identifier'], $name, $minute, $hour, $dayOfMonth, $month, $dayOfWeek, $isActive, $onlyWhenOnline);
+        });
+    }
+
+    public function updateSchedule(Request $request, int $id, int $scheduleId): Response
+    {
+        $data = json_decode($request->getContent(), true);
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) use ($scheduleId, $data) {
+            return $client->updateSchedule($r['remote_server_id'], $r['remote_server_identifier'], $scheduleId, $data);
+        });
+    }
+
+    public function deleteSchedule(Request $request, int $id, int $scheduleId): Response
+    {
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) use ($scheduleId) {
+            $client->deleteSchedule($r['remote_server_id'], $r['remote_server_identifier'], $scheduleId);
+            return ['deleted' => true];
+        });
+    }
+
+    public function executeSchedule(Request $request, int $id, int $scheduleId): Response
+    {
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) use ($scheduleId) {
+            $client->executeSchedule($r['remote_server_id'], $r['remote_server_identifier'], $scheduleId);
+            return ['executed' => true];
+        });
+    }
+
+    public function createScheduleTask(Request $request, int $id, int $scheduleId): Response
+    {
+        $data = json_decode($request->getContent(), true);
+        $action = trim((string) ($data['action'] ?? ''));
+        $payload = trim((string) ($data['payload'] ?? ''));
+        $timeOffset = (int) ($data['time_offset'] ?? 0);
+        $continueOnFailure = (bool) ($data['continue_on_failure'] ?? false);
+        
+        if ($action === '' || $payload === '') {
+            return ApiResponse::error('action and payload are required', 'MISSING_FIELD', 400);
+        }
+        
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) use ($scheduleId, $action, $payload, $timeOffset, $continueOnFailure) {
+            return $client->createScheduleTask($r['remote_server_id'], $r['remote_server_identifier'], $scheduleId, $action, $payload, $timeOffset, $continueOnFailure);
+        });
+    }
+
+    public function updateScheduleTask(Request $request, int $id, int $scheduleId, int $taskId): Response
+    {
+        $data = json_decode($request->getContent(), true);
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) use ($scheduleId, $taskId, $data) {
+            return $client->updateScheduleTask($r['remote_server_id'], $r['remote_server_identifier'], $scheduleId, $taskId, $data);
+        });
+    }
+
+    public function deleteScheduleTask(Request $request, int $id, int $scheduleId, int $taskId): Response
+    {
+        return $this->withClient($request, $id, function (ExternalApiClient $client, array $r) use ($scheduleId, $taskId) {
+            $client->deleteScheduleTask($r['remote_server_id'], $r['remote_server_identifier'], $scheduleId, $taskId);
+            return ['deleted' => true];
+        });
+    }
 }
