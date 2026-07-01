@@ -14,7 +14,6 @@ import {
   Terminal, HardDrive, BarChart3, Database as DbIcon, Clock, Shield,
   Pin, PinOff,
 } from 'lucide-vue-next'
-import SharedRemoteServerView from './SharedRemoteServerView.vue'
 
 const toast = useToast()
 const api   = useApichanAPI()
@@ -599,7 +598,7 @@ function switchTab(tab: 'sources' | 'remote') {
 
       <!-- ═══════════════ REMOTE SERVERS TAB ═══════════════════ -->
       <template v-else>
-        <SharedRemoteServerView />
+        <div class="text-center py-8 text-gray-400">Remote server management coming soon...</div>
       </template>
 
     </div>
