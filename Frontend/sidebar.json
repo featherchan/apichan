@@ -1,0 +1,29 @@
+{
+  "dashboard": {},
+  "client": {
+    "/apichan/remote-servers": {
+      "name": "Remote Servers",
+      "icon": "🔗",
+      "lucideIcon": "server",
+      "showBadge": false,
+      "redirect": "/apichan/remote-servers",
+      "component": "/apichan/dist/user.html",
+      "description": "Control your pinned external servers",
+      "category": "client"
+    }
+  },
+  "admin": {
+    "/apichan/sources": {
+      "name": "Apichan",
+      "icon": "🔗",
+      "lucideIcon": "link",
+      "showBadge": false,
+      "redirect": "/apichan/sources",
+      "component": "/apichan/dist/admin.html",
+      "description": "Manage external panel sources and remote servers",
+      "category": "admin",
+      "permission": "admin.servers.create"
+    }
+  },
+  "server": {}
+}

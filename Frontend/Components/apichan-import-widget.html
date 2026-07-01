@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Apichan Import</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --surface: #f9fafb;
+    --surface2: #f3f4f6;
+    --border: rgba(0,0,0,0.12);
+    --border-hover: rgba(0,0,0,0.22);
+    --text: #111827;
+    --muted: #6b7280;
+    --primary: hsl(262 83% 58%);
+    --primary-fg: #fff;
+    --radius: 8px;
+    --green: #059669;
+    --shadow: 0 4px 24px rgba(0,0,0,0.12);
+  }
+
+  html.dark {
+    --bg: #111113;
+    --surface: #1c1c1f;
+    --surface2: #26262a;
+    --border: rgba(255,255,255,0.10);
+    --border-hover: rgba(255,255,255,0.20);
+    --text: #e5e7eb;
+    --muted: #6b7280;
+    --shadow: 0 24px 80px rgba(0,0,0,0.6);
+  }
+
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: transparent;
+    color: var(--text);
+    overflow: hidden;
+    font-size: 14px;
+  }
+
+  #trigger-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+  }
+
+  #open-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--primary);
+    color: var(--primary-fg);
+    border: none;
+    border-radius: var(--radius);
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  #open-btn:hover { opacity: 0.85; }
+  #trigger-label { font-size: 0.78rem; color: var(--muted); }
+
+  #overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 9999;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 16px;
+    overflow-y: auto;
+  }
+  #overlay.open { display: flex; }
+
+  #modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 700px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .modal-header { display: flex; justify-content: space-between; align-items: center; }
+  .modal-title { font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+
+  #close-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1rem;
+    border-radius: 6px;
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    transition: color 0.15s, background 0.15s;
+  }
+  #close-btn:hover { color: var(--text); border-color: var(--border-hover); }
+
+  .steps {
+    display: flex;
+    gap: 0;
+    font-size: 0.72rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .step-item {
+    flex: 1;
+    text-align: center;
+    padding: 7px 4px;
+    color: var(--muted);
+    background: var(--surface2);
+    border-right: 1px solid var(--border);
+    transition: background 0.15s, color 0.15s;
+  }
+  .step-item:last-child { border-right: none; }
+  .step-item.active { background: hsla(262,83%,58%,0.15); color: hsl(262 83% 55%); font-weight: 600; }
+  .step-item.done { background: rgba(5,150,105,0.10); color: #059669; }
+
+  label {
+    font-size: 0.76rem;
+    font-weight: 500;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 5px;
+  }
+
+  input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text);
+    font-size: 0.875rem;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus { border-color: var(--primary); }
+  input::placeholder { color: var(--muted); }
+
+  /* ── custom dropdown ── */
+  .cselect { position: relative; }
+  .cselect-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text);
+    font-size: 0.875rem;
+    padding: 9px 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.15s;
+    min-height: 38px;
+  }
+  .cselect-trigger:hover { border-color: var(--border-hover); }
+  .cselect-trigger.open { border-color: var(--primary); }
+  .cselect-trigger.disabled { opacity: 0.5; cursor: not-allowed; }
+  .cselect-arrow {
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--muted);
+    transition: transform 0.15s;
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
+  .cselect-trigger.open .cselect-arrow { transform: rotate(180deg); }
+  .cselect-options {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    box-shadow: var(--shadow);
+    z-index: 200;
+    overflow: hidden;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .cselect-options.open { display: block; }
+  .cselect-opt {
+    padding: 9px 14px;
+    font-size: 0.875rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.12s;
+    border-bottom: 1px solid var(--border);
+  }
+  .cselect-opt:last-child { border-bottom: none; }
+  .cselect-opt:hover { background: var(--surface2); }
+  .cselect-opt.selected { color: var(--primary); font-weight: 600; }
+  .cselect-opt.dim { color: var(--muted); pointer-events: none; font-style: italic; }
+  .cselect-placeholder { color: var(--muted); }
+
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  .btn-row { display: flex; justify-content: flex-end; gap: 8px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    border: none; border-radius: 7px; padding: 8px 16px;
+    font-size: 0.875rem; font-weight: 600; cursor: pointer;
+    transition: opacity 0.15s, background 0.15s;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover:not(:disabled) { opacity: 0.85; }
+  .btn-ghost {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover:not(:disabled) { border-color: var(--border-hover); }
+  .btn-success { background: var(--green); color: #fff; }
+  .btn-success:hover:not(:disabled) { opacity: 0.88; }
+
+  .server-list { display: flex; flex-direction: column; gap: 5px; max-height: 300px; overflow-y: auto; }
+  .server-card {
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    background: var(--bg);
+  }
+  .server-card:hover { border-color: var(--border-hover); background: var(--surface2); }
+  .server-card.selected {
+    border-color: var(--primary);
+    background: hsla(262,83%,58%,0.08);
+  }
+  .server-name { font-weight: 600; font-size: 0.9rem; color: var(--text); }
+  .server-meta { font-size: 0.72rem; color: var(--muted); margin-top: 3px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .pagination {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.78rem; color: var(--muted);
+  }
+
+  .alert { border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; line-height: 1.5; }
+  .alert-error {
+    background: rgba(239,68,68,0.10);
+    border: 1px solid rgba(239,68,68,0.25);
+    color: #dc2626;
+  }
+  html.dark .alert-error { color: #fca5a5; }
+  .alert-warn {
+    background: rgba(234,179,8,0.08);
+    border: 1px solid rgba(234,179,8,0.25);
+    color: #92400e;
+  }
+  html.dark .alert-warn { color: #fde047; }
+  .alert-success {
+    background: rgba(5,150,105,0.08);
+    border: 1px solid rgba(5,150,105,0.25);
+    color: #065f46;
+  }
+  html.dark .alert-success { color: #6ee7b7; }
+
+  .spinner {
+    display: inline-block;
+    width: 15px; height: 15px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.65s linear infinite;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .preview-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .preview-table td { padding: 5px 8px; color: var(--text); }
+  .preview-table td:first-child { color: var(--muted); width: 38%; }
+  .preview-table tr:nth-child(odd) td { background: var(--surface2); }
+
+  .step-panel { display: none; flex-direction: column; gap: 16px; }
+  .step-panel.active { display: flex; }
+  .section-title { font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
+  .divider { height: 1px; background: var(--border); margin: 2px 0; }
+
+  #msg { min-height: 0; }
+
+  @media (max-width: 520px) {
+    .row2 { grid-template-columns: 1fr; }
+    .row3 { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="trigger-bar">
+  <button id="open-btn" onclick="openModal()">
+    🔗 Import from Source
+  </button>
+  <span id="trigger-label">Import a server from Pterodactyl, FeatherPanel, Pelican, or Calagopus</span>
+</div>
+
+<div id="overlay">
+  <div id="modal">
+    <div class="modal-header">
+      <span class="modal-title">🔗 Apichan — Import Server</span>
+      <button id="close-btn" onclick="closeModal()" title="Close">✕</button>
+    </div>
+
+    <div class="steps">
+      <div class="step-item" id="si-1">1 · Source</div>
+      <div class="step-item" id="si-2">2 · Server</div>
+      <div class="step-item" id="si-3">3 · Target</div>
+      <div class="step-item" id="si-4">4 · Confirm</div>
+    </div>
+
+    <div id="msg"></div>
+
+    <!-- Step 1: Choose source -->
+    <div class="step-panel active" id="step1">
+      <div class="field">
+        <label>Select a configured source</label>
+        <div class="cselect" id="source-cselect">
+          <div class="cselect-trigger" id="source-trigger" onclick="toggleDrop('source')">
+            <span id="source-drop-label" class="cselect-placeholder">— Loading sources… —</span>
+            <span class="cselect-arrow"></span>
+          </div>
+          <div class="cselect-options" id="source-drop-options"></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="goStep2()">Next →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Pick server -->
+    <div class="step-panel" id="step2">
+      <div class="field">
+        <label>Filter by name</label>
+        <input type="text" id="server-search" placeholder="Type to filter…" oninput="filterServers()" />
+      </div>
+      <div class="server-list" id="server-list"></div>
+      <div class="pagination" id="server-pagination"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="setStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep3()">Next →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Target in this panel -->
+    <div class="step-panel" id="step3">
+      <div class="field">
+        <label>Server name <span style="font-weight:400;color:var(--muted)">(leave blank to use source name)</span></label>
+        <input type="text" id="f-name" placeholder="My Server" />
+      </div>
+      <div class="divider"></div>
+      <p class="section-title">Target (in this panel)</p>
+      <div class="row2">
+        <div class="field">
+          <label>Spell / Egg</label>
+          <div class="cselect" id="spell-cselect">
+            <div class="cselect-trigger" id="spell-trigger" onclick="toggleDrop('spell')">
+              <span id="spell-drop-label" class="cselect-placeholder">— Loading… —</span>
+              <span class="cselect-arrow"></span>
+            </div>
+            <div class="cselect-options" id="spell-drop-options"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Node</label>
+          <div class="cselect" id="node-cselect">
+            <div class="cselect-trigger" id="node-trigger" onclick="toggleDrop('node')">
+              <span id="node-drop-label" class="cselect-placeholder">— Loading… —</span>
+              <span class="cselect-arrow"></span>
+            </div>
+            <div class="cselect-options" id="node-drop-options"></div>
+          </div>
+        </div>
+        <div class="field" style="grid-column: 1 / -1">
+          <label>Allocation <span id="alloc-hint" style="font-weight:400;color:var(--muted)"> — select a node first</span></label>
+          <div class="cselect" id="alloc-cselect">
+            <div class="cselect-trigger disabled" id="alloc-trigger" onclick="toggleDrop('alloc')">
+              <span id="alloc-drop-label" class="cselect-placeholder">— Select a node first —</span>
+              <span class="cselect-arrow"></span>
+            </div>
+            <div class="cselect-options" id="alloc-drop-options"></div>
+          </div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <p class="section-title">Resource limits <span style="font-weight:400">(pre-filled from source server)</span></p>
+      <div class="row3">
+        <div class="field"><label>RAM (MB)</label><input type="number" id="f-mem" min="0" /></div>
+        <div class="field"><label>Disk (MB)</label><input type="number" id="f-disk" min="0" /></div>
+        <div class="field"><label>CPU (%)</label><input type="number" id="f-cpu" min="0" /></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="setStep(2)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep4()">Preview →</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Confirm -->
+    <div class="step-panel" id="step4">
+      <p class="section-title">Review before importing</p>
+      <table class="preview-table" id="preview-table"></table>
+      <div class="alert alert-warn" id="import-warn" style="display:none">
+        ⚠️ Server files will <strong>NOT</strong> be transferred — only configuration. The server must be reinstalled or files migrated manually after import.
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="setStep(3)">← Back</button>
+        <button class="btn btn-success" onclick="doImport()" id="import-btn">✓ Import server</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  let sources = [], servers = [], selectedSource = null, selectedServer = null;
+  let serverPage = 1, serverTotal = 0, serverTotalPages = 1;
+  let currentStep = 1;
+
+  // dropdown state: id → { open, value, label }
+  const drops = {
+    source: { open: false, value: null, label: null },
+    spell:  { open: false, value: null, label: null },
+    node:   { open: false, value: null, label: null },
+    alloc:  { open: false, value: null, label: null },
+  };
+
+  async function api(method, path, body) {
+    const r = await fetch(path, {
+      method,
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const j = await r.json();
+    if (!j.success) throw new Error(j.message || j.error_message || 'API error');
+    return j.data;
+  }
+
+  function showMsg(html, type = 'error') {
+    const el = document.getElementById('msg');
+    el.innerHTML = html ? `<div class="alert alert-${type}">${html}</div>` : '';
+  }
+
+  function setStep(n) {
+    currentStep = n;
+    for (let i = 1; i <= 4; i++) {
+      document.getElementById('step' + i).classList.toggle('active', i === n);
+      const si = document.getElementById('si-' + i);
+      si.classList.remove('active', 'done');
+      if (i === n) si.classList.add('active');
+      else if (i < n) si.classList.add('done');
+    }
+    showMsg('');
+    notifyHeight();
+  }
+
+  function notifyHeight() {
+    setTimeout(() => {
+      try { window.parent.postMessage({ type: 'featherpanel-iframe-resize', height: document.body.scrollHeight + 40 }, '*'); } catch {}
+    }, 60);
+  }
+
+  // ── Generic dropdown ──────────────────────────────────────────────────────
+  window.toggleDrop = function (key) {
+    const trigger = document.getElementById(key + '-trigger');
+    if (trigger.classList.contains('disabled')) return;
+    const wasOpen = drops[key].open;
+    // close all
+    Object.keys(drops).forEach(k => {
+      drops[k].open = false;
+      document.getElementById(k + '-trigger')?.classList.remove('open');
+      document.getElementById(k + '-drop-options')?.classList.remove('open');
+    });
+    if (!wasOpen) {
+      drops[key].open = true;
+      trigger.classList.add('open');
+      document.getElementById(key + '-drop-options').classList.add('open');
+    }
+    notifyHeight();
+  };
+
+  function closeDrop(key) {
+    drops[key].open = false;
+    document.getElementById(key + '-trigger')?.classList.remove('open');
+    document.getElementById(key + '-drop-options')?.classList.remove('open');
+  }
+
+  document.addEventListener('click', function (e) {
+    ['source','spell','node','alloc'].forEach(key => {
+      const wrap = document.getElementById(key + '-cselect');
+      if (wrap && !wrap.contains(e.target)) closeDrop(key);
+    });
+  });
+
+  function setDropValue(key, value, label) {
+    drops[key].value = value;
+    drops[key].label = label;
+    const lbl = document.getElementById(key + '-drop-label');
+    lbl.textContent = label;
+    lbl.classList.remove('cselect-placeholder');
+    // highlight
+    document.querySelectorAll(`#${key}-drop-options .cselect-opt`).forEach(el => {
+      el.classList.toggle('selected', String(el.dataset.val) === String(value));
+    });
+    closeDrop(key);
+  }
+
+  function renderDropOptions(key, items, placeholder) {
+    const el = document.getElementById(key + '-drop-options');
+    const lbl = document.getElementById(key + '-drop-label');
+    if (!items.length) {
+      el.innerHTML = `<div class="cselect-opt dim">${placeholder || '— No items —'}</div>`;
+      lbl.textContent = placeholder || '— None available —';
+      lbl.classList.add('cselect-placeholder');
+      return;
+    }
+    if (!drops[key].value) {
+      lbl.textContent = '— Select —';
+      lbl.classList.add('cselect-placeholder');
+    }
+    el.innerHTML = items.map(it =>
+      `<div class="cselect-opt${drops[key].value == it.value ? ' selected' : ''}" data-val="${it.value}" onclick="pickDropItem('${key}',${JSON.stringify(it.value)},${JSON.stringify(it.label)})">${escHtml(it.label)}</div>`
+    ).join('');
+  }
+
+  window.pickDropItem = function (key, value, label) {
+    setDropValue(key, value, label);
+    if (key === 'node') onNodePicked(value);
+  };
+
+  // ── Load sources ──────────────────────────────────────────────────────────
+  async function loadSources() {
+    try {
+      const d = await api('GET', '/api/apichan/sources');
+      sources = d.sources || [];
+      renderDropOptions('source', sources.map(s => ({
+        value: s.id,
+        label: '[' + s.type + '] ' + s.name,
+      })), '— No sources configured —');
+    } catch {
+      renderDropOptions('source', [], '— Error loading sources —');
+    }
+  }
+
+  // ── Load spells & nodes (on step 3 open) ─────────────────────────────────
+  async function loadSpells() {
+    renderDropOptions('spell', [], '— Loading… —');
+    try {
+      // fetch all pages up to 200 spells
+      let all = [];
+      let page = 1, totalPages = 1;
+      do {
+        const d = await api('GET', `/api/admin/spells?page=${page}&limit=100`);
+        all = all.concat((d.spells || []).map(s => ({ value: s.id, label: s.name })));
+        totalPages = d.pagination?.total_pages || 1;
+        page++;
+      } while (page <= totalPages && all.length < 200);
+      renderDropOptions('spell', all, '— No spells available —');
+    } catch {
+      renderDropOptions('spell', [], '— Error loading spells —');
+    }
+  }
+
+  async function loadNodes() {
+    renderDropOptions('node', [], '— Loading… —');
+    try {
+      let all = [];
+      let page = 1, totalPages = 1;
+      do {
+        const d = await api('GET', `/api/admin/nodes?page=${page}&limit=100`);
+        all = all.concat((d.nodes || []).map(n => ({ value: n.id, label: n.name })));
+        totalPages = d.pagination?.total_pages || 1;
+        page++;
+      } while (page <= totalPages && all.length < 200);
+      renderDropOptions('node', all, '— No nodes available —');
+    } catch {
+      renderDropOptions('node', [], '— Error loading nodes —');
+    }
+  }
+
+  async function onNodePicked(nodeId) {
+    // reset alloc
+    drops.alloc.value = null;
+    drops.alloc.label = null;
+    const lbl = document.getElementById('alloc-drop-label');
+    lbl.textContent = '— Loading… —';
+    lbl.classList.add('cselect-placeholder');
+    document.getElementById('alloc-hint').textContent = '';
+    const trigger = document.getElementById('alloc-trigger');
+    trigger.classList.add('disabled');
+
+    try {
+      const d = await api('GET', `/api/admin/allocations?node_id=${nodeId}&not_used=1&limit=100`);
+      const items = (d.allocations || []).map(a => ({
+        value: a.id,
+        label: (a.ip_alias || a.ip) + ':' + a.port + (a.notes ? '  (' + a.notes + ')' : ''),
+      }));
+      trigger.classList.remove('disabled');
+      renderDropOptions('alloc', items, '— No free allocations on this node —');
+    } catch {
+      trigger.classList.remove('disabled');
+      renderDropOptions('alloc', [], '— Error loading allocations —');
+    }
+    notifyHeight();
+  }
+
+  // ── Step 1 ────────────────────────────────────────────────────────────────
+  window.goStep2 = async function () {
+    if (!drops.source.value) { showMsg('Please select a source.'); return; }
+    selectedSource = sources.find(s => s.id === drops.source.value);
+    serverPage = 1; servers = [];
+    setStep(2);
+    await fetchServers();
+  };
+
+  // ── Step 2 ────────────────────────────────────────────────────────────────
+  async function fetchServers() {
+    const list = document.getElementById('server-list');
+    list.innerHTML = '<div style="text-align:center;padding:24px"><span class="spinner"></span> Loading…</div>';
+    document.getElementById('server-pagination').innerHTML = '';
+    try {
+      const d = await api('GET', `/api/apichan/sources/${selectedSource.id}/servers?page=${serverPage}`);
+      servers = d.servers || [];
+      serverTotal = d.total || servers.length;
+      serverTotalPages = d.total_pages || 1;
+      renderServers(servers);
+      renderPagination();
+    } catch (e) {
+      list.innerHTML = `<div class="alert alert-error">${escHtml(e.message)}</div>`;
+    }
+  }
+
+  function renderServers(list) {
+    const q = document.getElementById('server-search').value.toLowerCase();
+    const filtered = q ? list.filter(s => s.name.toLowerCase().includes(q)) : list;
+    const el = document.getElementById('server-list');
+    if (!filtered.length) {
+      el.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px">No servers found.</div>';
+      return;
+    }
+    el.innerHTML = filtered.map(s => `
+      <div class="server-card${selectedServer && String(selectedServer.id) === String(s.id) ? ' selected' : ''}"
+           onclick="selectServer(${escAttr(JSON.stringify(s))})">
+        <div class="server-name">${escHtml(s.name)}</div>
+        <div class="server-meta">
+          <span>💾 ${fmtMem(s.memory)}</span>
+          <span>🖴 ${fmtMem(s.disk)}</span>
+          <span>⚡ ${s.cpu}%</span>
+          <span style="color:${statusColor(s.status)}">${escHtml(s.status)}</span>
+        </div>
+      </div>`).join('');
+  }
+
+  window.filterServers = function () { renderServers(servers); };
+
+  function renderPagination() {
+    const el = document.getElementById('server-pagination');
+    el.innerHTML = `
+      <span>${serverTotal} server(s) — page ${serverPage}/${serverTotalPages}</span>
+      <span style="display:flex;gap:6px">
+        <button class="btn btn-ghost" style="padding:5px 12px;font-size:0.75rem" ${serverPage <= 1 ? 'disabled' : ''} onclick="changePage(-1)">← Prev</button>
+        <button class="btn btn-ghost" style="padding:5px 12px;font-size:0.75rem" ${serverPage >= serverTotalPages ? 'disabled' : ''} onclick="changePage(1)">Next →</button>
+      </span>`;
+  }
+
+  window.changePage = async function (delta) {
+    serverPage = Math.max(1, Math.min(serverTotalPages, serverPage + delta));
+    await fetchServers();
+  };
+
+  window.selectServer = function (s) {
+    selectedServer = s;
+    renderServers(servers);
+    document.getElementById('f-mem').value  = s.memory  || '';
+    document.getElementById('f-disk').value = s.disk    || '';
+    document.getElementById('f-cpu').value  = s.cpu     || '';
+  };
+
+  window.goStep3 = function () {
+    if (!selectedServer) { showMsg('Please select a server first.'); return; }
+    // reset target fields on each entry
+    ['spell','node','alloc'].forEach(k => {
+      drops[k].value = null; drops[k].label = null;
+      const lbl = document.getElementById(k + '-drop-label');
+      if (lbl) { lbl.textContent = '— Loading… —'; lbl.classList.add('cselect-placeholder'); }
+    });
+    document.getElementById('alloc-trigger').classList.add('disabled');
+    document.getElementById('alloc-drop-label').textContent = '— Select a node first —';
+    setStep(3);
+    loadSpells();
+    loadNodes();
+  };
+
+  // ── Step 3 ────────────────────────────────────────────────────────────────
+  window.goStep4 = function () {
+    if (!drops.spell.value) { showMsg('Please select a spell.'); return; }
+    if (!drops.node.value)  { showMsg('Please select a node.'); return; }
+    if (!drops.alloc.value) { showMsg('Please select an allocation.'); return; }
+
+    const rows = [
+      ['Source',      `[${escHtml(selectedSource.type)}] ${escHtml(selectedSource.name)}`],
+      ['Server',      `${escHtml(selectedServer.name)} (ID: ${escHtml(String(selectedServer.id))})`],
+      ['Name',        escHtml(document.getElementById('f-name').value || selectedServer.name)],
+      ['Owner',       'Current user (you)'],
+      ['Spell',       escHtml(drops.spell.label)],
+      ['Node',        escHtml(drops.node.label)],
+      ['Allocation',  escHtml(drops.alloc.label)],
+      ['RAM',         escHtml(document.getElementById('f-mem').value  || String(selectedServer.memory)) + ' MB'],
+      ['Disk',        escHtml(document.getElementById('f-disk').value || String(selectedServer.disk))   + ' MB'],
+      ['CPU',         escHtml(document.getElementById('f-cpu').value  || String(selectedServer.cpu))    + '%'],
+    ];
+    document.getElementById('preview-table').innerHTML =
+      rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+    document.getElementById('import-warn').style.display = '';
+    setStep(4);
+  };
+
+  // ── Step 4 ────────────────────────────────────────────────────────────────
+  window.doImport = async function () {
+    const btn = document.getElementById('import-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Importing…';
+    showMsg('');
+
+    const payload = {
+      source_id:     selectedSource.id,
+      server_id:     selectedServer.id,
+      name:          document.getElementById('f-name').value.trim() || undefined,
+      spell_id:      drops.spell.value,
+      node_id:       drops.node.value,
+      allocation_id: drops.alloc.value,
+      memory:        parseInt(document.getElementById('f-mem').value)  || selectedServer.memory,
+      disk:          parseInt(document.getElementById('f-disk').value) || selectedServer.disk,
+      cpu:           parseInt(document.getElementById('f-cpu').value)  || selectedServer.cpu,
+    };
+
+    try {
+      await api('POST', '/api/apichan/import', payload);
+      showMsg('✓ Server imported successfully!', 'success');
+      setTimeout(() => {
+        try { window.parent.postMessage({ type: 'featherpanel-navigate', path: '/admin/servers' }, '*'); } catch {}
+        closeModal();
+      }, 2200);
+    } catch (e) {
+      showMsg('Import failed: ' + escHtml(e.message));
+      btn.disabled = false;
+      btn.innerHTML = '✓ Import server';
+    }
+  };
+
+  // ── modal open/close ──────────────────────────────────────────────────────
+  window.openModal = function () {
+    document.getElementById('overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    try { window.parent.postMessage({ type: 'featherpanel-modal-open' }, '*'); } catch {}
+    notifyHeight();
+  };
+
+  window.closeModal = function () {
+    document.getElementById('overlay').classList.remove('open');
+    document.body.style.overflow = '';
+    reset();
+    notifyHeight();
+  };
+
+  function reset() {
+    selectedSource = null; selectedServer = null;
+    serverPage = 1; servers = [];
+    Object.keys(drops).forEach(k => { drops[k].value = null; drops[k].label = null; drops[k].open = false; });
+    setStep(1);
+    document.getElementById('server-search').value = '';
+    ['f-name','f-mem','f-disk','f-cpu'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    // reset drop labels
+    const defaults = {
+      source: '— Select a source —',
+      spell:  '— Loading… —',
+      node:   '— Loading… —',
+      alloc:  '— Select a node first —',
+    };
+    Object.entries(defaults).forEach(([k, txt]) => {
+      const lbl = document.getElementById(k + '-drop-label');
+      if (lbl) { lbl.textContent = txt; lbl.classList.add('cselect-placeholder'); }
+    });
+    document.getElementById('alloc-trigger').classList.add('disabled');
+    loadSources();
+  }
+
+  // ── util ──────────────────────────────────────────────────────────────────
+  function fmtMem(mb) {
+    if (mb >= 1024) return (mb / 1024).toFixed(1) + ' GB';
+    return mb + ' MB';
+  }
+
+  function statusColor(status) {
+    const s = (status || '').toLowerCase();
+    if (s === 'running' || s === 'online') return '#059669';
+    if (s === 'suspended') return '#d97706';
+    if (s === 'offline' || s === 'stopped') return '#dc2626';
+    return 'var(--muted)';
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function escAttr(s) {
+    return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+  }
+
+  // ── theme ─────────────────────────────────────────────────────────────────
+  window.addEventListener('message', e => {
+    if (e.data?.type === 'featherpanel-theme') {
+      document.documentElement.classList.toggle('dark', e.data.theme === 'dark');
+    }
+  });
+
+  if (window.parent !== window) window.parent.postMessage({ type: 'featherpanel-ready' }, '*');
+  notifyHeight();
+  loadSources();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+plugin:
+  name: Apichan
+  identifier: apichan
+  description: 'Import & link servers from Pterodactyl, FeatherPanel, or Pelican into your panel'
+  flags:
+    - hasEvents
+    - hasInstallScript
+    - hasRemovalScript
+  version: 1.0.0
+  target: v2
+  author:
+    - Mytai
+  icon: 'https://cdn.jsdelivr.net/gh/selfhst/icons/png/featherpanel.png'
+  requiredConfigs: {}
+  dependencies:
+    - php=8.5
+    - php-ext=json
+    - php-ext=openssl
+    - php-ext=curl
+config: {}

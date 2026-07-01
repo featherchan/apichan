@@ -1,0 +1,12 @@
+[
+  {
+    "id": "apichan-import-widget-user",
+    "component": "apichan-import-widget.html",
+    "page": "user-servers",
+    "location": "top-of-page",
+    "enabled": true,
+    "priority": 100,
+    "useRawRendering": true,
+    "iframe": { "minHeight": "60px" }
+  }
+]

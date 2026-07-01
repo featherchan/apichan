@@ -1,0 +1,7 @@
+# FeatherPanel Export Ignore File
+*/node_modules/*
+/demo/*
+README.md
+.git/
+.github/
+*/App/*
