@@ -80,6 +80,91 @@ async function pinServer(s: NormalizedServer, sourceId: number) {
   finally { pinningId.value = null }
 }
 
+// ── Import modal ───────────────────────────────────────────────────────────────
+const showImport = ref(false); const importSrv = ref<NormalizedServer | null>(null)
+const importSrcId = ref<number | null>(null)
+const iName = ref(''); const iMem = ref(''); const iDisk = ref(''); const iCpu = ref('')
+const importing = ref(false)
+
+interface DropItem { id: number; label: string }
+const spells = ref<DropItem[]>([]); const nodes = ref<DropItem[]>([]); const allocs = ref<DropItem[]>([])
+const spellSel = ref<DropItem | null>(null); const nodeSel = ref<DropItem | null>(null); const allocSel = ref<DropItem | null>(null)
+const spellOpen = ref(false); const nodeOpen = ref(false); const allocOpen = ref(false)
+const loadingSpells = ref(false); const loadingNodes = ref(false); const loadingAllocs = ref(false)
+const spellRef = ref<HTMLElement | null>(null); const nodeRef = ref<HTMLElement | null>(null); const allocRef = ref<HTMLElement | null>(null)
+
+function closeAllImportDrops() { spellOpen.value = false; nodeOpen.value = false; allocOpen.value = false }
+function handleImportClickOutside(e: MouseEvent) {
+  const t = e.target as Node
+  if (spellRef.value && !spellRef.value.contains(t)) spellOpen.value = false
+  if (nodeRef.value  && !nodeRef.value.contains(t))  nodeOpen.value  = false
+  if (allocRef.value && !allocRef.value.contains(t)) allocOpen.value = false
+}
+
+async function loadSpells() {
+  loadingSpells.value = true; spells.value = []
+  try {
+    let all: DropItem[] = [], page = 1, totalPages = 1
+    do {
+      const r = await fetch(`/api/admin/spells?page=${page}&limit=100`, { credentials: 'include', headers: { Accept: 'application/json' } })
+      const j = await r.json()
+      ;(j.data?.spells ?? []).forEach((s: any) => all.push({ id: s.id, label: s.name }))
+      totalPages = j.data?.pagination?.total_pages ?? 1; page++
+    } while (page <= totalPages && all.length < 300)
+    spells.value = all
+  } catch { /* silent */ } finally { loadingSpells.value = false }
+}
+async function loadNodes() {
+  loadingNodes.value = true; nodes.value = []
+  try {
+    let all: DropItem[] = [], page = 1, totalPages = 1
+    do {
+      const r = await fetch(`/api/admin/nodes?page=${page}&limit=100`, { credentials: 'include', headers: { Accept: 'application/json' } })
+      const j = await r.json()
+      ;(j.data?.nodes ?? []).forEach((n: any) => all.push({ id: n.id, label: n.name }))
+      totalPages = j.data?.pagination?.total_pages ?? 1; page++
+    } while (page <= totalPages && all.length < 300)
+    nodes.value = all
+  } catch { /* silent */ } finally { loadingNodes.value = false }
+}
+async function pickNode(n: DropItem) {
+  nodeSel.value = n; nodeOpen.value = false; allocSel.value = null; allocs.value = []
+  loadingAllocs.value = true
+  try {
+    const r = await fetch(`/api/admin/allocations?node_id=${n.id}&not_used=1&limit=100`, { credentials: 'include', headers: { Accept: 'application/json' } })
+    const j = await r.json()
+    allocs.value = (j.data?.allocations ?? []).map((a: any) => ({
+      id: a.id, label: (a.ip_alias || a.ip) + ':' + a.port + (a.notes ? '  (' + a.notes + ')' : ''),
+    }))
+  } catch { /* silent */ } finally { loadingAllocs.value = false }
+}
+function openImport(s: NormalizedServer, sourceId: number) {
+  importSrv.value = s; importSrcId.value = sourceId; iName.value = ''
+  iMem.value = String(s.memory || ''); iDisk.value = String(s.disk || ''); iCpu.value = String(s.cpu || '')
+  spellSel.value = null; nodeSel.value = null; allocSel.value = null
+  spells.value = []; nodes.value = []; allocs.value = []
+  closeAllImportDrops(); showImport.value = true
+  document.addEventListener('mousedown', handleImportClickOutside)
+  loadSpells(); loadNodes()
+}
+function closeImport() { showImport.value = false; document.removeEventListener('mousedown', handleImportClickOutside) }
+async function doImport() {
+  if (!spellSel.value || !nodeSel.value || !allocSel.value) { toast.warning('Please select Spell, Node and Allocation'); return }
+  importing.value = true
+  try {
+    await api.importServer({
+      source_id: importSrcId.value!, server_id: importSrv.value!.id,
+      name: iName.value.trim() || undefined, spell_id: spellSel.value.id,
+      node_id: nodeSel.value.id, allocation_id: allocSel.value.id,
+      memory: iMem.value ? parseInt(iMem.value) : undefined,
+      disk: iDisk.value ? parseInt(iDisk.value) : undefined,
+      cpu: iCpu.value ? parseInt(iCpu.value) : undefined,
+    })
+    toast.success(`"${importSrv.value!.name}" imported!`); closeImport()
+  } catch (e) { toast.error(e instanceof Error ? e.message : 'Import failed') }
+  finally { importing.value = false }
+}
+
 // ── Source modal ───────────────────────────────────────────────────────────────
 const showSrcModal = ref(false)
 const editingSrc   = ref<Source | null>(null)
@@ -713,13 +798,21 @@ const breadcrumbs = computed(() => {
                         <td class="td font-medium truncate max-w-[160px]">{{ s.name }}</td>
                         <td class="td text-muted-foreground hidden sm:table-cell">{{ fmtMem(s.memory) }}</td>
                         <td class="td"><span :class="['font-medium capitalize', statusCls(s.status)]">{{ s.status }}</span></td>
-                        <td class="td">
-                          <button :disabled="pinningId===Number(s.id)"
-                            class="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 transition-colors"
-                            @click="pinServer(s, source.id)">
-                            <Loader2 v-if="pinningId===Number(s.id)" class="h-3 w-3 animate-spin"/>
-                            <Pin v-else class="h-3 w-3"/>Pin
-                          </button>
+                         <td class="td">
+                          <div class="flex gap-1">
+                            <button :disabled="pinningId===Number(s.id)"
+                              class="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 transition-colors"
+                              @click="pinServer(s, source.id)">
+                              <Loader2 v-if="pinningId===Number(s.id)" class="h-3 w-3 animate-spin"/>
+                              <Pin v-else class="h-3 w-3"/>Pin
+                            </button>
+                            <button
+                              class="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+                              title="Import to FeatherPanel"
+                              @click="openImport(s, source.id)">
+                              <Plus class="h-3 w-3"/>Import
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     </tbody>
@@ -845,6 +938,124 @@ const breadcrumbs = computed(() => {
               <Loader2 v-if="saving" class="h-3.5 w-3.5 animate-spin"/>{{ editingSrc ? 'Save changes' : 'Add source' }}
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- ══ IMPORT MODAL ══════════════════════════════════════════════════════════ -->
+  <Teleport to="body">
+    <div v-if="showImport && importSrv" class="modal-overlay" @click.self="closeImport">
+      <div class="modal-box max-w-lg">
+        <div class="modal-header">
+          <div>
+            <h2 class="font-semibold">Import server</h2>
+            <p class="text-xs text-muted-foreground mt-0.5">{{ importSrv.name }}</p>
+          </div>
+          <button class="icon-btn" @click="closeImport"><X class="h-4 w-4"/></button>
+        </div>
+        
+        <div class="mx-5 mt-4 rounded-lg bg-muted/30 border border-border px-4 py-3 text-xs grid grid-cols-3 gap-2 text-muted-foreground">
+          <div><span class="block font-medium text-foreground mb-0.5">RAM</span>{{ fmtMem(importSrv.memory) }}</div>
+          <div><span class="block font-medium text-foreground mb-0.5">Disk</span>{{ fmtMem(importSrv.disk) }}</div>
+          <div><span class="block font-medium text-foreground mb-0.5">CPU</span>{{ importSrv.cpu }}%</div>
+        </div>
+        
+        <div class="p-5 space-y-3">
+          <div class="field">
+            <label class="label">Name override <span class="font-normal">(optional)</span></label>
+            <input v-model="iName" type="text" :placeholder="importSrv.name" class="input"/>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-3">
+            <div class="field">
+              <label class="label">Spell / Egg <span class="text-red-400">*</span></label>
+              <div ref="spellRef" class="relative">
+                <button type="button" class="input w-full flex justify-between items-center min-h-[38px]"
+                  @click="spellOpen=!spellOpen;nodeOpen=false;allocOpen=false">
+                  <span :class="spellSel ? 'text-foreground' : 'text-muted-foreground'">
+                    {{ spellSel ? spellSel.label : (loadingSpells ? 'Loading…' : '— Select spell —') }}
+                  </span>
+                  <ChevronDown class="h-4 w-4 text-muted-foreground shrink-0" :class="spellOpen?'rotate-180':''"/>
+                </button>
+                <div v-show="spellOpen" class="absolute top-full left-0 right-0 z-30 mt-1 bg-card border border-border rounded-lg shadow-xl overflow-y-auto max-h-48">
+                  <div v-if="loadingSpells" class="px-3 py-2 text-xs text-muted-foreground">Loading…</div>
+                  <div v-else-if="!spells.length" class="px-3 py-2 text-xs text-muted-foreground italic">No spells found</div>
+                  <button v-for="sp in spells" :key="sp.id" type="button"
+                    class="w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-muted transition-colors"
+                    @click="spellSel=sp;spellOpen=false">
+                    <span>{{ sp.label }}</span><Check v-if="spellSel?.id===sp.id" class="h-3.5 w-3.5 text-primary shrink-0"/>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="field">
+              <label class="label">Node <span class="text-red-400">*</span></label>
+              <div ref="nodeRef" class="relative">
+                <button type="button" class="input w-full flex justify-between items-center min-h-[38px]"
+                  @click="nodeOpen=!nodeOpen;spellOpen=false;allocOpen=false">
+                  <span :class="nodeSel ? 'text-foreground' : 'text-muted-foreground'">
+                    {{ nodeSel ? nodeSel.label : (loadingNodes ? 'Loading…' : '— Select node —') }}
+                  </span>
+                  <ChevronDown class="h-4 w-4 text-muted-foreground shrink-0" :class="nodeOpen?'rotate-180':''"/>
+                </button>
+                <div v-show="nodeOpen" class="absolute top-full left-0 right-0 z-30 mt-1 bg-card border border-border rounded-lg shadow-xl overflow-y-auto max-h-48">
+                  <div v-if="loadingNodes" class="px-3 py-2 text-xs text-muted-foreground">Loading…</div>
+                  <div v-else-if="!nodes.length" class="px-3 py-2 text-xs text-muted-foreground italic">No nodes found</div>
+                  <button v-for="nd in nodes" :key="nd.id" type="button"
+                    class="w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-muted transition-colors"
+                    @click="pickNode(nd)">
+                    <span>{{ nd.label }}</span><Check v-if="nodeSel?.id===nd.id" class="h-3.5 w-3.5 text-primary shrink-0"/>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-span-2 field">
+              <label class="label">Allocation <span class="text-red-400">*</span><span v-if="!nodeSel" class="font-normal"> — select a node first</span></label>
+              <div ref="allocRef" class="relative">
+                <button type="button" :disabled="!nodeSel" class="input w-full flex justify-between items-center min-h-[38px] disabled:opacity-50 disabled:cursor-not-allowed"
+                  @click="allocOpen=!allocOpen;spellOpen=false;nodeOpen=false">
+                  <span :class="allocSel ? 'text-foreground' : 'text-muted-foreground'">
+                    {{ allocSel ? allocSel.label : (loadingAllocs ? 'Loading…' : (nodeSel ? '— Select allocation —' : '— Select a node first —')) }}
+                  </span>
+                  <ChevronDown class="h-4 w-4 text-muted-foreground shrink-0" :class="allocOpen?'rotate-180':''"/>
+                </button>
+                <div v-show="allocOpen && nodeSel" class="absolute top-full left-0 right-0 z-30 mt-1 bg-card border border-border rounded-lg shadow-xl overflow-y-auto max-h-48">
+                  <div v-if="loadingAllocs" class="px-3 py-2 text-xs text-muted-foreground">Loading…</div>
+                  <div v-else-if="!allocs.length" class="px-3 py-2 text-xs text-muted-foreground italic">No free allocations on this node</div>
+                  <button v-for="al in allocs" :key="al.id" type="button"
+                    class="w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-muted transition-colors"
+                    @click="allocSel=al;allocOpen=false">
+                    <span>{{ al.label }}</span><Check v-if="allocSel?.id===al.id" class="h-3.5 w-3.5 text-primary shrink-0"/>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="field">
+            <label class="label">Resources <span class="font-normal">(pre-filled from source)</span></label>
+            <div class="grid grid-cols-3 gap-3">
+              <div><span class="block text-[11px] text-muted-foreground mb-1">RAM (MB)</span><input v-model="iMem" type="number" min="0" class="input"/></div>
+              <div><span class="block text-[11px] text-muted-foreground mb-1">Disk (MB)</span><input v-model="iDisk" type="number" min="0" class="input"/></div>
+              <div><span class="block text-[11px] text-muted-foreground mb-1">CPU (%)</span><input v-model="iCpu" type="number" min="0" class="input"/></div>
+            </div>
+          </div>
+          
+          <p class="text-xs text-muted-foreground bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2">
+            ⚠ Only server configuration is imported — files are not transferred. Reinstall after import.
+          </p>
+        </div>
+        
+        <div class="modal-footer justify-end">
+          <button class="btn-ghost" @click="closeImport">Cancel</button>
+          <button class="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+            :disabled="importing" @click="doImport">
+            <Loader2 v-if="importing" class="h-3.5 w-3.5 animate-spin"/><Plus v-else class="h-3.5 w-3.5"/>
+            {{ importing ? 'Importing…' : 'Import server' }}
+          </button>
         </div>
       </div>
     </div>
